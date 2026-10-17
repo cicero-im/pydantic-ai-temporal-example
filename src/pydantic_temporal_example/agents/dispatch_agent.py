@@ -82,6 +82,18 @@ class GitHubRequest:
 
 @dataclass
 @with_config(use_attribute_docstrings=True)
+class BlogPostRequest:
+    """A marker that indicates that you are ready to delegate to the blog post agent."""
+
+    type: Literal["blog-post-request"]
+    query: str
+    extra_info: str | None
+    thread_messages: list[dict[str, Any]] | None = None
+    """Full Slack thread context for agent reference"""
+
+
+@dataclass
+@with_config(use_attribute_docstrings=True)
 class WorkflowRequest:
     """Generic workflow request with agent routing and scheduling information.
 
@@ -101,17 +113,18 @@ class WorkflowRequest:
 
     type: Literal["workflow-request"]
     agent_type: str
-    """Type of agent: 'github', 'web_research', 'slack'"""
+    """Type of agent: 'github', 'web_research', 'blog_post', 'slack'"""
+
+    query: str
+    """The actual query/instruction for the agent"""
 
     agent_role: str = "default"
     """Role specialization:
     - **GitHub Agents:** 'implementer', 'reviewer', 'fixer', 'verifier', 'analyzer', 'documenter', 'default'
     - **Web Research Agents:** 'default'
+    - **Blog Post Agents:** 'default', 'editor', 'seo'
     - **Slack:** 'default'
     """
-
-    query: str
-    """The actual query/instruction for the agent"""
 
     workflow_type: Literal["oneshot", "periodic"] = "oneshot"
     """Whether to run once or repeatedly"""
@@ -135,16 +148,16 @@ class WorkflowRequest:
             raise ValueError(msg)
 
 
-type DispatchResult = NoResponse | SlackResponse | WebResearchRequest | GitHubRequest | WorkflowRequest
+type DispatchResult = NoResponse | SlackResponse | WebResearchRequest | GitHubRequest | BlogPostRequest | WorkflowRequest
 
 dispatch_agent = Agent(
     model=get_github_agent_model(),
-    output_type=[NoResponse, SlackResponse, WebResearchRequest, GitHubRequest, WorkflowRequest],
+    output_type=[NoResponse, SlackResponse, WebResearchRequest, GitHubRequest, BlogPostRequest, WorkflowRequest],
     instructions="""
     You are a dispatch agent that routes user requests to appropriate agents and workflows.
 
     Your primary tool is WorkflowRequest, which should be used for most requests. It allows you to specify:
-    1. **agent_type**: github, web_research, slack
+    1. **agent_type**: github, web_research, blog_post, slack
     2. **agent_role**: Specialization (see below)
     3. **workflow_type**: oneshot (run once) or periodic (repeat)
     4. **interval_seconds**: How often to repeat (if periodic)
@@ -162,6 +175,11 @@ dispatch_agent = Agent(
 
     **Web Research:**
     - default: Research topics, gather information
+
+    **Blog Post:**
+    - default: Draft and improve blog posts in repository markdown files
+    - editor: Improve clarity, flow, and structure
+    - seo: Improve discoverability, titles, headings, and metadata
 
     **Slack:**
     - default: Direct response messages
@@ -186,6 +204,12 @@ dispatch_agent = Agent(
     User: "Document the API"
     → WorkflowRequest(agent_type="github", agent_role="documenter", workflow_type="oneshot")
 
+    User: "Draft a blog post about our multi-agent architecture"
+    → WorkflowRequest(agent_type="blog_post", agent_role="default", workflow_type="oneshot")
+
+    User: "Improve SEO for blog post docs/blog/multi-agent.md"
+    → WorkflowRequest(agent_type="blog_post", agent_role="seo", workflow_type="oneshot")
+
     ## Multi-Step Workflows
 
     When user asks to "fix a PR", you should understand this as potentially multiple steps:
@@ -198,7 +222,7 @@ dispatch_agent = Agent(
 
     ## Backward Compatibility
 
-    Legacy tools (GitHubRequest, WebResearchRequest, SlackResponse, NoResponse) still work
+    Legacy tools (GitHubRequest, BlogPostRequest, WebResearchRequest, SlackResponse, NoResponse) still work
     but prefer WorkflowRequest for its flexibility with roles and scheduling.
 
     If missing information, use SlackResponse to ask the user.

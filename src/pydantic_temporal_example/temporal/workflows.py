@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Any, assert_never
 from pydantic_ai.durable_exec.temporal import TemporalAgent
 from temporalio import workflow
 
+from pydantic_temporal_example.agents.blog_post_agent import BlogPostDependencies, blog_post_agent
 from pydantic_temporal_example.agents.dispatch_agent import (
+    BlogPostRequest,
     DispatchResult,
     GitHubRequest,
     NoResponse,
@@ -20,7 +22,6 @@ from pydantic_temporal_example.agents.dispatch_agent import (
 )
 from pydantic_temporal_example.agents.github_agent import (
     GitHubDependencies,
-    GitHubResponse,
     github_agent,
 )
 from pydantic_temporal_example.agents.web_research_agent import (
@@ -56,6 +57,7 @@ temporal_dispatch_agent = TemporalAgent(
     activity_config=_agent_activity_config,
 )
 temporal_github_agent = TemporalAgent(github_agent, name="github_agent", activity_config=_agent_activity_config)
+temporal_blog_post_agent = TemporalAgent(blog_post_agent, name="blog_post_agent", activity_config=_agent_activity_config)
 
 # Build web research agent only if JINA_API_KEY is configured
 _web_research_agent = build_web_research_agent()
@@ -152,8 +154,13 @@ class SlackThreadWorkflow:
             request = dispatcher_result.output
             # Default repo used when not specified in thread context
             deps = GitHubDependencies(repo_name="default-repo")
-            result = await temporal_github_agent.run(request.query, output_type=GitHubResponse, deps=deps)  # type: ignore[call-arg, arg-type]
-            response = result.output.response
+            result = await temporal_github_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+            response = str(result.output)
+        elif isinstance(dispatcher_result.output, BlogPostRequest):
+            request = dispatcher_result.output
+            deps = BlogPostDependencies(repo_name="pydantic-ai-temporal-example")
+            result = await temporal_blog_post_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+            response = str(result.output)
         elif isinstance(dispatcher_result.output, WebResearchRequest):
             # Populate thread context and pass structured request
             if temporal_web_research_agent is None:
@@ -238,9 +245,15 @@ class PeriodicGitHubPRCheckWorkflow:
                 # Route to GitHub agent based on dispatcher decision
                 request = dispatcher_result.output
                 deps = GitHubDependencies(repo_name=self._repo_name)
-                result = await temporal_github_agent.run(request.query, output_type=GitHubResponse, deps=deps)  # type: ignore[call-arg, arg-type]
-                response = result.output.response
+                result = await temporal_github_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                response = str(result.output)
                 workflow.logger.info(f"Check #{check_num} - Processed via GitHub agent")
+            elif isinstance(dispatcher_result.output, BlogPostRequest):
+                request = dispatcher_result.output
+                deps = BlogPostDependencies(repo_name=self._repo_name)
+                result = await temporal_blog_post_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                response = str(result.output)
+                workflow.logger.info(f"Check #{check_num} - Processed via Blog Post agent")
             elif isinstance(dispatcher_result.output, WebResearchRequest):
                 # Route to Web Research agent based on dispatcher decision
                 if temporal_web_research_agent is None:
@@ -345,8 +358,13 @@ class CLIConversationWorkflow:
             request = dispatcher_result.output
             # Use configured repo name from workflow instance
             deps = GitHubDependencies(repo_name=self._repo_name)
-            result = await temporal_github_agent.run(request.query, output_type=GitHubResponse, deps=deps)  # type: ignore[call-arg, arg-type]
-            response = result.output.response
+            result = await temporal_github_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+            response = str(result.output)
+        elif isinstance(dispatcher_result.output, BlogPostRequest):
+            request = dispatcher_result.output
+            deps = BlogPostDependencies(repo_name=self._repo_name)
+            result = await temporal_blog_post_agent.run(request.query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+            response = str(result.output)
         elif isinstance(dispatcher_result.output, WebResearchRequest):
             # Delegate to web research agent
             if temporal_web_research_agent is None:

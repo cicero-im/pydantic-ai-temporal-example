@@ -64,7 +64,7 @@ async def test_basic_text_fallback(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_jina_search_wrapper_truncates(monkeypatch):
-    async def fake_call(_self, _query, _search_deep="basic", _time_range=None):
+    async def fake_call(_self, query, search_deep="basic", time_range=None):  # noqa: ARG001
         return [{"title": str(i), "url": "", "content": "", "score": 0.0} for i in range(10)]
     monkeypatch.setattr(JinaSearchTool, "__call__", fake_call, raising=True)
     out = await jina_search("q", max_results=5)

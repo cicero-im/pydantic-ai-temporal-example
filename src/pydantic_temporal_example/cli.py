@@ -15,6 +15,7 @@ import logfire
 import typer
 import uvloop
 
+from pydantic_temporal_example.agents.blog_post_agent import BlogPostDependencies, blog_post_agent
 from pydantic_temporal_example.agents.github_agent import GitHubDependencies, github_agent
 from pydantic_temporal_example.config import get_settings
 from pydantic_temporal_example.temporal.client import build_temporal_client
@@ -186,6 +187,57 @@ def github_prs(
             logfire.info("GitHub Agent Response:")
         except RuntimeError as e:
             logfire.error(f"Error fetching PRs: {e}")
+
+    asyncio.run(_run())
+
+
+@app.command()
+def blog_post(
+    repo: Annotated[str, typer.Option(help="Repository name")] = "pydantic-ai-temporal-example",
+    title: Annotated[str, typer.Option(help="Blog post title")] = "Building Multi-Agent Workflows with Temporal",
+    slug: Annotated[str, typer.Option(help="Slug for markdown filename (without .md)")] = "multi-agent-workflows",
+    summary: Annotated[str, typer.Option(help="Short post summary")] = (
+        "How to orchestrate specialized agents with Temporal workflows."
+    ),
+    branch: Annotated[str, typer.Option(help="Target branch to commit into")] = "main",
+    blog_dir: Annotated[str, typer.Option(help="Directory where posts are stored")] = "docs/blog",
+    enhance_prompt: Annotated[str, typer.Option(help="Instruction for enhancement pass")] = (
+        "Improve clarity, examples, and actionable takeaways."
+    ),
+) -> None:
+    """Start a blog post commit in GitHub and ask the blog-post agent to enhance it."""
+
+    async def _run() -> None:
+        deps = BlogPostDependencies(repo_name=repo, blog_dir=blog_dir, branch=branch)
+        path = f"{blog_dir.rstrip('/')}/{slug}.md"
+
+        start_query = (
+            f"Start a new blog post.\n"
+            f"Title: {title}\n"
+            f"Slug: {slug}\n"
+            f"Summary: {summary}\n"
+            f"Use start_blog_post and commit to branch {branch}."
+        )
+        logfire.info("Starting blog post commit", repo=repo, path=path, branch=branch)
+        start_result = await blog_post_agent.run(start_query, deps=deps)  # type: ignore[arg-type]
+        logfire.info("Start result", result=str(start_result.output))
+
+        enhance_query = (
+            f"Enhance the blog post at {path}.\n"
+            f"Goals: {enhance_prompt}\n"
+            f"Steps:\n"
+            f"1) Read the post\n"
+            f"2) Improve it with concrete examples and structure\n"
+            f"3) Commit the updated markdown with message 'feat(blog): enhance {slug}'"
+        )
+        logfire.info("Enhancing blog post with agent", repo=repo, path=path, branch=branch)
+        enhance_result = await blog_post_agent.run(enhance_query, deps=deps)  # type: ignore[arg-type]
+        logfire.info("Enhancement result", result=str(enhance_result.output))
+
+        print("Start Result:")
+        print(start_result.output)
+        print("\nEnhancement Result:")
+        print(enhance_result.output)
 
     asyncio.run(_run())
 

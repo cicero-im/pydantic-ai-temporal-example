@@ -1,6 +1,6 @@
 """Tests for CLI HTTP client functions."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -26,7 +26,7 @@ class TestCLIHTTPClient:
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             # Mock successful HTTP response
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status.return_value = None
             mock_client.post.return_value = mock_response
@@ -64,7 +64,7 @@ class TestCLIHTTPClient:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status.return_value = None
             mock_client.post.return_value = mock_response
@@ -108,7 +108,7 @@ class TestCLIHTTPClient:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status.return_value = None
             mock_client.get.return_value = mock_response
@@ -129,7 +129,7 @@ class TestCLIHTTPClient:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = mock_response_data
             mock_response.raise_for_status.return_value = None
             mock_client.get.return_value = mock_response
@@ -148,12 +148,9 @@ class TestCLIHTTPClient:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            # Mock 404 response
-            mock_response = AsyncMock()
-            mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "404 Not Found", request=AsyncMock(), response=mock_response
-            )
-            mock_client.get.return_value = mock_response
+            # Mock 404 response with a real request/response pair so raise_for_status behaves normally
+            request = httpx.Request("GET", "http://127.0.0.1:4000/cli-workflow/nonexistent-workflow-id/response")
+            mock_client.get.return_value = httpx.Response(status_code=404, request=request)
 
             with pytest.raises(httpx.HTTPStatusError):
                 await check_workflow_response(

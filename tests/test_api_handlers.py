@@ -34,12 +34,12 @@ async def test_handle_app_mention_event_starts_workflow(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_handle_message_channels_event_when_no_workflow():
+async def test_handle_message_channels_event_when_no_workflow(monkeypatch):
     # Avoid importing real TemporalError by overriding the symbol used in the module.
     class DummyTemporalError(Exception):
         def __init__(self):
             super().__init__("no workflow")
-    api_mod.TemporalError = DummyTemporalError  # type: ignore[attr-defined]
+    monkeypatch.setattr(api_mod, "TemporalError", DummyTemporalError, raising=True)
 
     class FakeHandle:
         async def describe(self):
