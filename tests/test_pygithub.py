@@ -1,5 +1,7 @@
 from datetime import datetime
-from types import SimpleNamespace
+
+from github.GithubException import GithubException
+
 from pydantic_temporal_example.tools.pygithub import GitHubConn
 import pytest
 
@@ -52,3 +54,68 @@ def test_get_pr_and_comments(monkeypatch):
     out = GitHubConn().get_pr_comments("r", 1)
     kinds = {c["type"] for c in out}
     assert "issue_comment" in kinds and "review_comment" in kinds
+
+
+def test_get_file_content(monkeypatch):
+    class File:
+        def __init__(self, text: str):
+            self.decoded_content = text.encode("utf-8")
+
+    class Repo:
+        def get_contents(self, _path, ref=None):  # noqa: ARG002
+            return File("hello markdown")
+
+    monkeypatch.setattr(GitHubConn, "get_repo", lambda _self, _repo_name: Repo(), raising=True)
+    out = GitHubConn(organization="o").get_file_content("repo", "docs/blog/test.md", ref="main")
+    assert out == "hello markdown"
+
+
+def test_create_or_update_file_updates(monkeypatch):
+    class Existing:
+        sha = "oldsha"
+
+    class Commit:
+        sha = "newsha"
+
+    class Repo:
+        def get_contents(self, _path, ref=None):  # noqa: ARG002
+            return Existing()
+
+        def update_file(self, **kwargs):
+            assert kwargs["sha"] == "oldsha"
+            return {"commit": Commit()}
+
+    monkeypatch.setattr(GitHubConn, "get_repo", lambda _self, _repo_name: Repo(), raising=True)
+    out = GitHubConn(organization="o").create_or_update_file(
+        "repo",
+        "docs/blog/test.md",
+        "content",
+        "feat(blog): update",
+        branch="main",
+    )
+    assert out["action"] == "updated"
+    assert out["commit_sha"] == "newsha"
+
+
+def test_create_or_update_file_creates_when_missing(monkeypatch):
+    class Commit:
+        sha = "createdsha"
+
+    class Repo:
+        def get_contents(self, _path, ref=None):  # noqa: ARG002
+            raise GithubException(404, {"message": "Not Found"}, {})
+
+        def create_file(self, **kwargs):
+            assert kwargs["branch"] == "main"
+            return {"commit": Commit()}
+
+    monkeypatch.setattr(GitHubConn, "get_repo", lambda _self, _repo_name: Repo(), raising=True)
+    out = GitHubConn(organization="o").create_or_update_file(
+        "repo",
+        "docs/blog/new-post.md",
+        "content",
+        "feat(blog): start",
+        branch="main",
+    )
+    assert out["action"] == "created"
+    assert out["commit_sha"] == "createdsha"

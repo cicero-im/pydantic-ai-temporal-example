@@ -5,6 +5,7 @@ from typing import Any
 import logfire
 from github import Auth, Github
 from github.ContentFile import ContentFile
+from github.GithubException import GithubException
 from github.PullRequest import PullRequest
 from github.Repository import Repository
 
@@ -196,3 +197,92 @@ class GitHubConn:
         except Exception as e:
             logfire.error("Error listing pull requests from repository", repo_name=repo_name, error=str(e))
             raise
+
+    def get_file_content(self, repo_name: str, path: str, ref: str = "main") -> str:
+        """Get text file content from a repository path.
+
+        Args:
+            repo_name: Repository name (without organization)
+            path: Path to file in repository
+            ref: Branch, tag, or commit SHA
+
+        Returns:
+            Decoded UTF-8 content of the file
+        """
+        try:
+            repo = self.get_repo(repo_name)
+            content_file = repo.get_contents(path, ref=ref)
+            if isinstance(content_file, list):
+                msg = f"Path '{path}' is a directory; expected a file"
+                raise ValueError(msg)
+            decoded = content_file.decoded_content.decode("utf-8")
+            return decoded
+        except Exception as e:
+            logfire.error("Error reading file from repository", repo_name=repo_name, path=path, ref=ref, error=str(e))
+            raise
+
+    def create_or_update_file(
+        self,
+        repo_name: str,
+        path: str,
+        content: str,
+        commit_message: str,
+        branch: str = "main",
+    ) -> dict[str, str]:
+        """Create a file or update an existing file in a repository.
+
+        Args:
+            repo_name: Repository name (without organization)
+            path: Path to the file in repository
+            content: New file content
+            commit_message: Commit message
+            branch: Target branch name
+
+        Returns:
+            Metadata including action, path, and commit SHA
+        """
+        repo = self.get_repo(repo_name)
+        try:
+            existing = repo.get_contents(path, ref=branch)
+            if isinstance(existing, list):
+                msg = f"Path '{path}' is a directory; expected a file"
+                raise ValueError(msg)
+
+            result = repo.update_file(
+                path=path,
+                message=commit_message,
+                content=content,
+                sha=existing.sha,
+                branch=branch,
+            )
+            commit = result["commit"]
+            return {
+                "action": "updated",
+                "path": path,
+                "branch": branch,
+                "commit_sha": commit.sha,
+            }
+        except GithubException as e:
+            if e.status != 404:
+                logfire.error(
+                    "Error updating file in repository",
+                    repo_name=repo_name,
+                    path=path,
+                    branch=branch,
+                    error=str(e),
+                )
+                raise
+
+            result = repo.create_file(
+                path=path,
+                message=commit_message,
+                content=content,
+                branch=branch,
+            )
+            commit = result["commit"]
+            return {
+                "action": "created",
+                "path": path,
+                "branch": branch,
+                "commit_sha": commit.sha,
+            }

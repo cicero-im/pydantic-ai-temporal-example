@@ -175,6 +175,33 @@ GITHUB_ROLE_INSTRUCTIONS = {
     """,
 }
 
+# Base blog-post agent instructions
+BLOG_POST_BASE_INSTRUCTIONS = """
+You are a blog post agent that writes and improves markdown posts committed to GitHub.
+You have tools to:
+- List blog posts
+- Read existing posts
+- Start a new blog draft with a commit
+- Commit updated content back to the repository
+"""
+
+BLOG_POST_ROLE_INSTRUCTIONS = {
+    "default": """
+    You are a general blog writing assistant.
+    Draft clear, practical blog posts with strong structure and examples.
+    """,
+    "editor": """
+    You are a blog EDITOR.
+    Improve clarity, narrative flow, section transitions, and readability.
+    Remove fluff and make the post tighter and more concrete.
+    """,
+    "seo": """
+    You are a blog SEO editor.
+    Improve title quality, heading hierarchy, keyword coverage, summary clarity,
+    and actionable metadata while preserving technical accuracy.
+    """,
+}
+
 
 def get_instructions_for_role(agent_type: str, agent_role: str) -> str:
     """Get combined instructions for a specific agent role.
@@ -196,6 +223,11 @@ def get_instructions_for_role(agent_type: str, agent_role: str) -> str:
         role_instructions = GITHUB_ROLE_INSTRUCTIONS.get(agent_role, GITHUB_ROLE_INSTRUCTIONS["default"])
         return f"{base}\n\n{role_instructions}"
 
+    if agent_type == "blog_post":
+        base = BLOG_POST_BASE_INSTRUCTIONS
+        role_instructions = BLOG_POST_ROLE_INSTRUCTIONS.get(agent_role, BLOG_POST_ROLE_INSTRUCTIONS["default"])
+        return f"{base}\n\n{role_instructions}"
+
     # Add other agent types here as needed
     return "Default agent instructions"
 
@@ -211,4 +243,6 @@ def list_available_roles(agent_type: str) -> list[str]:
     """
     if agent_type == "github":
         return list(GITHUB_ROLE_INSTRUCTIONS.keys())
+    if agent_type == "blog_post":
+        return list(BLOG_POST_ROLE_INSTRUCTIONS.keys())
     return ["default"]

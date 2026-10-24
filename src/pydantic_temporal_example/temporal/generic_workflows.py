@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING, Any
 from pydantic_ai.durable_exec.temporal import TemporalAgent
 from temporalio import workflow
 
-from pydantic_temporal_example.agents.github_agent import GitHubDependencies, GitHubResponse
+from pydantic_temporal_example.agents.blog_post_agent import BlogPostDependencies
+from pydantic_temporal_example.agents.github_agent import GitHubDependencies
 from pydantic_temporal_example.agents.registry import get_agent
 from pydantic_temporal_example.agents.web_research_agent import WebResearchResponse
 from pydantic_temporal_example.models import CLIResponse
@@ -50,7 +51,7 @@ class GenericOneShotWorkflow:
         """Execute agent once and return result.
 
         Args:
-            agent_type: Type of agent from registry (e.g., "github", "web_research")
+            agent_type: Type of agent from registry (e.g., "github", "web_research", "blog_post")
             agent_role: Role specialization (e.g., "implementer", "reviewer", "default")
             query: The query/instruction for the agent
             context: Additional context (repo_name, etc.)
@@ -83,8 +84,12 @@ class GenericOneShotWorkflow:
                 # Prepare dependencies based on agent type
                 if agent_type == "github":
                     deps = GitHubDependencies(repo_name=self._repo_name)
-                    result = await temporal_agent.run(query, output_type=GitHubResponse, deps=deps)  # type: ignore[call-arg, arg-type]
-                    response = result.output.response
+                    result = await temporal_agent.run(query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                    response = str(result.output)
+                elif agent_type == "blog_post":
+                    deps = BlogPostDependencies(repo_name=self._repo_name)
+                    result = await temporal_agent.run(query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                    response = str(result.output)
                 elif agent_type == "web_research":
                     result = await temporal_agent.run(query, output_type=WebResearchResponse)
                     response = result.output.response
@@ -147,7 +152,7 @@ class GenericPeriodicWorkflow:
         """Execute agent periodically at specified interval.
 
         Args:
-            agent_type: Type of agent from registry (e.g., "github", "web_research")
+            agent_type: Type of agent from registry (e.g., "github", "web_research", "blog_post")
             agent_role: Role specialization (e.g., "implementer", "reviewer", "default")
             query: The query/instruction for the agent
             interval_seconds: How often to execute (in seconds)
@@ -201,8 +206,12 @@ class GenericPeriodicWorkflow:
                 # Execute agent based on type
                 if agent_type == "github":
                     deps = GitHubDependencies(repo_name=self._repo_name)
-                    result = await temporal_agent.run(query, output_type=GitHubResponse, deps=deps)  # type: ignore[call-arg, arg-type]
-                    response = result.output.response
+                    result = await temporal_agent.run(query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                    response = str(result.output)
+                elif agent_type == "blog_post":
+                    deps = BlogPostDependencies(repo_name=self._repo_name)
+                    result = await temporal_agent.run(query, output_type=str, deps=deps)  # type: ignore[call-arg, arg-type]
+                    response = str(result.output)
                 elif agent_type == "web_research":
                     result = await temporal_agent.run(query, output_type=WebResearchResponse)
                     response = result.output.response

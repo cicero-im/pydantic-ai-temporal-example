@@ -1,6 +1,7 @@
 """Agents for the pydantic-temporal-example app."""
 
 from pydantic_temporal_example.agents.dispatch_agent import (
+    BlogPostRequest,
     DispatchResult,
     GitHubRequest,
     NoResponse,
@@ -11,6 +12,7 @@ from pydantic_temporal_example.agents.dispatch_agent import (
 )
 
 __all__ = [
+    "BlogPostRequest",
     "DispatchResult",
     "GitHubRequest",
     "NoResponse",

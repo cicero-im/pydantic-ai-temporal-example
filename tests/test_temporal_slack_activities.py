@@ -7,18 +7,23 @@ from pydantic_temporal_example.models import SlackConversationsRepliesRequest, S
 class FakeSlack:
     def __init__(self):
         self.calls = 0
-    async def conversations_replies(self, *, _channel, _ts, _oldest=None, _cursor=None):
+
+    async def conversations_replies(self, *, channel, ts, oldest=None, cursor=None):  # noqa: ARG002
         self.calls += 1
         if self.calls == 1:
             return {"messages": [{"text": "first"}], "has_more": True, "response_metadata": {"next_cursor": "NEXT"}}
         return {"messages": [{"text": "second"}], "has_more": False}
+
     async def chat_postMessage(self, *, channel, thread_ts, text=None, blocks=None):
         return SimpleNamespace(data={"ok": True, "channel": channel, "ts": thread_ts, "text": text, "blocks": blocks})
+
     async def chat_delete(self, *, channel, ts):
         return SimpleNamespace(data={"ok": True, "channel": channel, "ts": ts})
-    async def reactions_add(self, *, name, _channel, _timestamp):
+
+    async def reactions_add(self, *, name, channel, timestamp):  # noqa: ARG002
         return SimpleNamespace(data={"ok": True, "name": name})
-    async def reactions_remove(self, *, name, _channel, _timestamp):
+
+    async def reactions_remove(self, *, name, channel, timestamp):  # noqa: ARG002
         return SimpleNamespace(data={"ok": True, "name": name})
 
 

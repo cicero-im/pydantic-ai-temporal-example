@@ -16,6 +16,7 @@ from pydantic_temporal_example.temporal.workflows import (
     CLIConversationWorkflow,
     PeriodicGitHubPRCheckWorkflow,
     SlackThreadWorkflow,
+    temporal_blog_post_agent,
     temporal_dispatch_agent,
     temporal_github_agent,
     temporal_web_research_agent,
@@ -65,6 +66,7 @@ async def temporal_worker(
         plugins = [
             AgentPlugin(temporal_dispatch_agent),
             AgentPlugin(temporal_github_agent),
+            AgentPlugin(temporal_blog_post_agent),
         ]
         if temporal_web_research_agent is not None:
             plugins.append(AgentPlugin(temporal_web_research_agent))

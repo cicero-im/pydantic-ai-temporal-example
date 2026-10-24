@@ -97,7 +97,7 @@ async def handle_message_channels_event(event: MessageChannelsEvent, temporal_cl
 class CLIWorkflowRequest(BaseModel):
     """Request model for CLI workflow submission."""
 
-    prompt: str = Field(..., description="The prompt/command to execute")
+    prompt: str = Field(..., min_length=1, description="The prompt/command to execute")
     session_id: str | None = Field(None, description="Optional session identifier")
     repeat: bool = Field(default=False, description="Whether to repeat the command periodically")
     repeat_interval: int = Field(default=30, description="Interval in seconds for repetition", ge=1)
